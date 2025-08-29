@@ -33,8 +33,7 @@ pipeline {
                          --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) \
                          --server=https://kubernetes.default.svc
                 oc project $PROJECT
-                buildah bud -t $REGISTRY/$PROJECT/$IMAGE_NAME:latest .
-                buildah push $REGISTRY/$PROJECT/$IMAGE_NAME:latest
+                oc start-build $IMAGE_NAME --from-dir=. --wait=true
                 '''
             }
         }
