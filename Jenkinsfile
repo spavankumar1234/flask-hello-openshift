@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "flask-hello-openshift"
         REGISTRY   = "image-registry.openshift-image-registry.svc:5000"
-        PROJECT    = "default"   // change if you want a new namespace
+        PROJECT    = "jenkins-project"   // change if you want a new namespace
     }
 
     stages {
