@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         IMAGE_NAME = "flask-hello-openshift"
-        REGISTRY = "image-registry.openshift-image-registry.svc:5000"
-        PROJECT = "default"   // change if you want a new namespace
+        REGISTRY   = "image-registry.openshift-image-registry.svc:5000"
+        PROJECT    = "default"   // change if you want a new namespace
     }
 
     stages {
@@ -28,18 +28,18 @@ pipeline {
 
         stage('Build & Push Image') {
             steps {
-                sh """
+                sh '''
                 oc login --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) --server=https://kubernetes.default.svc
                 oc project $PROJECT
                 buildah bud -t $REGISTRY/$PROJECT/$IMAGE_NAME:latest .
                 buildah push $REGISTRY/$PROJECT/$IMAGE_NAME:latest
-                """
+                '''
             }
         }
 
         stage('Deploy App') {
             steps {
-                sh """
+                sh '''
                 oc apply -f - <<EOF
                 apiVersion: apps/v1
                 kind: Deployment
@@ -72,15 +72,16 @@ pipeline {
                   - port: 80
                     targetPort: 8080
                 EOF
-                """
+                '''
             }
         }
 
         stage('Expose Route') {
             steps {
-                sh "oc expose svc/$IMAGE_NAME || true"
+                sh '''
+                oc expose svc/$IMAGE_NAME || true
+                '''
             }
         }
     }
 }
-
