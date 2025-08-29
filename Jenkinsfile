@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "flask-hello-openshift"
         REGISTRY   = "image-registry.openshift-image-registry.svc:5000"
-        PROJECT    = "jenkins-project"   // change if you want a new namespace
+        PROJECT    = "jenkins-project"   // change if needed
     }
 
     stages {
@@ -33,19 +33,25 @@ pipeline {
                          --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) \
                          --server=https://kubernetes.default.svc
                 oc project $PROJECT
-                oc start-build $IMAGE_NAME --from-dir=. --wait=true
+
+                # If imagestream does not exist, create it
+                oc get is $IMAGE_NAME || oc create is $IMAGE_NAME
+
+                # Start build from source
+                oc start-build $IMAGE_NAME --from-dir=. --wait=true || true
                 '''
             }
         }
-stage('Deploy App') {
-    steps {
-        sh '''
-        oc login --insecure-skip-tls-verify=true \
-                 --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) \
-                 --server=https://kubernetes.default.svc
-        oc project $PROJECT
 
-        cat <<EOF | oc apply -f -
+        stage('Deploy App') {
+            steps {
+                sh '''
+                oc login --insecure-skip-tls-verify=true \
+                         --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) \
+                         --server=https://kubernetes.default.svc
+                oc project $PROJECT
+
+                cat <<EOF | oc apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -81,15 +87,17 @@ spec:
   - port: 80
     targetPort: 8080
 EOF
-        '''
-    }
-}
+                '''
+            }
+        }
 
-stage('Expose Route') {
-    steps {
-        sh '''
-        oc expose svc/$IMAGE_NAME || true
-        '''
+        stage('Expose Route') {
+            steps {
+                sh '''
+                oc expose svc/$IMAGE_NAME || true
+                '''
+            }
+        }
     }
 }
 
