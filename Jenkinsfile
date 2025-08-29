@@ -37,53 +37,59 @@ pipeline {
                 '''
             }
         }
+stage('Deploy App') {
+    steps {
+        sh '''
+        oc login --insecure-skip-tls-verify=true \
+                 --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) \
+                 --server=https://kubernetes.default.svc
+        oc project $PROJECT
 
-        stage('Deploy App') {
-            steps {
-                sh '''
-                oc apply -f - <<EOF
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: $IMAGE_NAME
-                spec:
-                  replicas: 1
-                  selector:
-                    matchLabels:
-                      app: $IMAGE_NAME
-                  template:
-                    metadata:
-                      labels:
-                        app: $IMAGE_NAME
-                    spec:
-                      containers:
-                      - name: $IMAGE_NAME
-                        image: $REGISTRY/$PROJECT/$IMAGE_NAME:latest
-                        ports:
-                        - containerPort: 8080
-                ---
-                apiVersion: v1
-                kind: Service
-                metadata:
-                  name: $IMAGE_NAME
-                spec:
-                  selector:
-                    app: $IMAGE_NAME
-                  ports:
-                  - port: 80
-                    targetPort: 8080
-                EOF
-                '''
-            }
-        }
+        cat <<EOF | oc apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $IMAGE_NAME
+  labels:
+    app: $IMAGE_NAME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: $IMAGE_NAME
+  template:
+    metadata:
+      labels:
+        app: $IMAGE_NAME
+    spec:
+      containers:
+      - name: $IMAGE_NAME
+        image: $REGISTRY/$PROJECT/$IMAGE_NAME:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $IMAGE_NAME
+  labels:
+    app: $IMAGE_NAME
+spec:
+  selector:
+    app: $IMAGE_NAME
+  ports:
+  - port: 80
+    targetPort: 8080
+EOF
+        '''
+    }
+}
 
-        stage('Expose Route') {
-            steps {
-                sh '''
-                oc expose svc/$IMAGE_NAME || true
-                '''
-            }
-        }
+stage('Expose Route') {
+    steps {
+        sh '''
+        oc expose svc/$IMAGE_NAME || true
+        '''
     }
 }
 
